@@ -5,6 +5,23 @@
       (op (car sequence)
           (accumulate op initial (cdr sequence)))))
 
+(define (fold-left op initial sequence)
+  (define (iter result rest)
+    (if (null? rest)
+        result
+        (iter (op result (car rest))
+              (cdr rest))))
+  (iter initial sequence))
+
+(define (fold-right op initial sequence)
+  (accumulate op initial sequence))
+
+(define (reverse-foldr seq)
+  (fold-right (lambda (x y)
+                (append (list x) y)) nil seq))
+
+(define (reverse-foldl seq)
+  (fold-left (lambda (x y) (cons y x)) nil seq))
 
 (define (append seq1 seq2)
   (accumulate cons seq1 seq2))
