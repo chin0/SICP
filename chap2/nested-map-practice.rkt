@@ -64,4 +64,78 @@
 (define (prime-sum-pairs n)
   (map make-pair-sum
        (filter prime-sum? (unique-pairs n))))
-                  
+
+(define (enumerate-interval-except-k start end . klist)
+  (filter (lambda (i) (not (k-in-list? klist i)))
+          (enumerate-interval start end)))
+
+(define (k-in-list? list k)
+  (cond ((null? list) #f)
+        ((= (car list) k) #t)
+        (else (k-in-list? (cdr list) k))))
+
+(define (gen-triples n)
+  (flatmap (lambda (i)
+             (flatmap (lambda (j)
+                    (map (lambda (k) (list i j k))
+                         (enumerate-interval-except-k 1 n i j)))
+                  (enumerate-interval-except-k 1 n i)))
+           (enumerate-interval 1 n)))
+
+(define (triples-sum-s n s)
+  (define (sum-is-s? triples) (= s (accumulate + 0 triples)))
+  (filter sum-is-s? (gen-triples n)))
+
+;board abstraction
+;============= NQUEEN 2.42-2.43 =================
+(define test-board (list (list 1 1) (list 2 1) (list 3 1)))
+
+(define (make-position rownum colnum)
+  (cons rownum colnum))
+
+(define (row position)
+  (car position))
+
+(define (col position)
+  (cdr position))
+
+(define empty-board nil)
+
+(define (adjoin-position rownum colnum board)
+  (append board (list (make-position rownum colnum))))
+
+(define (diagonal? p1 p2)
+  (= (abs (- (row p1) (row p2))) (abs (- (col p1) (col p2)))))
+
+(define (horizontal? p1 p2)
+  (= (row p1) (row p2)))
+
+(define (position-safe? p1 p2)
+  (not (or (horizontal? p1 p2) (diagonal? p1 p2))))
+
+(define (safe? colnum positions)
+  (let ((kth-queens (list-ref positions (- colnum 1)))
+        (other-queens (filter (lambda (q)
+                                (not (= colnum (col q))))
+                              positions)))
+    (define (iter q board)
+      (or (null? board)
+          (and (position-safe? q (car board))
+               (iter q (cdr board)))))
+    
+    (iter kth-queens other-queens)))
+                                     
+
+(define (queens board-size)
+  (define (queen-cols k)
+    (if (= k 0)
+        (list empty-board)
+        (filter
+         (lambda (positions) (safe? k positions))
+         (flatmap
+          (lambda (rest-of-queens)
+            (map (lambda (new-row)
+                   (adjoin-position new-row k rest-of-queens))
+                 (enumerate-interval 1 board-size)))
+          (queen-cols (- k 1))))))
+  (queen-cols board-size))
