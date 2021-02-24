@@ -24,30 +24,43 @@
   (cond ((=number? a1 0) a2)
         ((=number? a2 0) a1)
         ((and (number? a1) (number? a2)) (+ a1 a2))
-        (else (list '+ a1 a2))))
+        (else (list a1 '+ a2))))
 
 (define (make-product m1 m2)
   (cond ((or (=number? m1 0) (=number? m2 0)) 0)
         ((=number? m1 1) m2)
         ((=number? m2 1) m1)
         ((and (number? m1) (number? m2)) (* m1 m2))
-        (else (list '* m1 m2))))
+        (else (list m1 '* m2))))
 
 (define (sum? x)
-  (and (pair? x) (eq? (car x) '+)))
+  (cond ((not (pair? x)) #f)
+        ((null? x) #f)
+        ((eq? (car x) '+) #t)
+        (else (sum? (cdr x)))))
 
-(define (augend s) (cadr s))
+(define (augend s)
+  (define (iter result current)
+    (if (or (null? current) (eq? (car current) '+))
+        (if (= (length result) 1) (car result) result)
+        (iter (append result (list (car current))) (cdr current))))
+  (iter nil s))
+;(define (augend s) (car s))
 
 (define (addend s)
-  (if (= (length (cddr s)) 1) (caddr s) (append '(+) (cddr s))))
+  (if (or (null? s) (eq? (car s) '+))
+      (if (= (length (cdr s)) 1) (car (cdr s)) (cdr s))
+      (addend (cdr s))))
 
 (define (product? x)
-  (and (pair? x) (eq? (car x) '*)))
+  (and (pair? x) (eq? (cadr x) '*)))
 
-(define (multiplicand p) (cadr p))
+(define (multiplicand p) (car p))
 
 (define (multiplier p)
-  (if (= (length (cddr p)) 1) (caddr p) (append '(*) (cddr p))))
+  (cond ((= (length (cddr p)) 1) (caddr p))
+        ((sum? (cddr p)) (augend (cddr p)))
+        (else (cddr p))))
 
 (define (exponentiation? x)
   (and (pair? x) (eq? (car x) '**)))
@@ -83,14 +96,13 @@
                        (deriv (multiplicand exp) var))
           (make-product (deriv (multiplier exp) var)
                        (multiplicand exp))))
-        ((exponentiation? exp)
-         (make-product (make-product (exponent exp)
-                                     (make-exponentiation (base exp) (- (exponent exp) 1)))
-                       (deriv (base exp) var)))
         (else
          (error "unknown expression type -- DERIV" exp))))
 
-(deriv '(+ x 3 x) 'x)
-(deriv '(* x y) 'x)
-(deriv '(* x y (+ x 3)) 'x)
-(deriv '(** x 2) 'x)
+;some tests
+(deriv '(x + y + z) 'x) ; 1
+(deriv '(3 * 2 * x) 'x) ; 6
+(deriv '(3 * 2 + x) 'x) ; 1
+(deriv '((3 * x + 4) * x) 'x)
+;(augend '(x * 2 + y * 4 + 3 * 2))
+;(addend '(x * 2 + y * 4 + 3 * 2))
