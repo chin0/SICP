@@ -9,11 +9,6 @@
 (define (make-tree entry left right)
   (list entry left right))
 
-(define (union-set s1 s2)
-  (if (or (equal? s1 '()) (equal? s2 '()))
-      '()
-      (let ((e1 (entry s1)) (e2 (entry s2)))
-        (cond ((= e1 e2) 
 (define (element-of-set? x set)
   (cond ((null? set) false)
         ((= x (entry set)) true)
@@ -94,6 +89,6 @@
                     (cons (make-tree this-entry left-tree right-tree)
                           remaining-elts))))))))
 
-;2.65는 위에 두개 만든거 이용해서 orderedlist의 알고리즘 그대로 이용하면 됨.
+;2.65는 위에 두개 만든거 이용해서 order
 (list->tree '(1 3 5 7 9 11))
 

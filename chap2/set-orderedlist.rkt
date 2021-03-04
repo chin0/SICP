@@ -31,4 +31,5 @@
                  ((< x1 x2) (cons x1 (union-set (cdr set1) set2)))
                  ((< x2 x1) (cons x2 (union-set set1 (cdr set2)))))))))
 
+
 (union-set '(1 2 3) '(2 5 6))
