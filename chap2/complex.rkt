@@ -1,5 +1,25 @@
 #lang sicp
 
+(define global-array '())
+
+(define (make-entry k v) (list k v))
+(define (key entry) (car entry))
+(define (value entry) (cadr entry))
+
+(define (put op type item)
+  (define (put-helper k array)
+    (cond ((null? array) (list(make-entry k item)))
+          ((equal? (key (car array)) k) array)
+          (else (cons (car array) (put-helper k (cdr array))))))
+  (set! global-array (put-helper (list op type) global-array)))
+
+(define (get op type)
+  (define (get-helper k array)
+    (cond ((null? array) #f)
+          ((equal? (key (car array)) k) (value (car array)))
+          (else (get-helper k (cdr array)))))
+  (get-helper (list op type) global-array))
+
 (define (attach-tag type-tag contents)
   (cons type-tag contents))
 
@@ -15,82 +35,72 @@
 
 (define (square x) (* x x))
 
-(define (rectangular? z)
-  (eq? (type-tag z) 'rectangular))
+(define (install-rectangular-package)
+  (define (real-part z) (car z))
+  (define (imag-part z) (cdr z))
+  (define (make-from-real-imag x y) (cons x y))
+  (define (magnitude z)
+    (sqrt (+ (square (real-part z))
+             (square (imag-part z)))))
+  (define (angle z)
+    (atan (imag-part z) (real-part z)))
 
-(define (polar? z)
-  (eq? (type-tag z) 'polar))
+  (define (make-from-mag-ang r a)
+    (cons (* r (cos a)) (* r (sin a))))
 
-(define (real-part-rectangular z) (car z))
+  (define (tag x) (attach-tag 'rectangular))
+  (put 'real-part '(rectangular) real-part)
+  (put 'imag-part '(rectangular) imag-part)
+  (put 'magnitude '(rectangular) magnitude)
+  (put 'angle '(rectangular) angle)
+  (put 'make-from-real-imag 'rectangular
+       (lambda (x y) (tag (make-from-real-imag x y))))
+  (put 'make-from-mag-ang 'rectangular
+       (lambda (r a) (tag (make-from-mag-ang r a))))
+  'done)
 
-(define (imag-part-rectangular z) (cdr z))
+(define (install-polar-package)
+  (define (magnitude z) (car z))
+  (define (angle z) (cdr z))
+  (define (make-from-mag-ang r a) (cons r a))
+  (define (real-part z)
+    (* (magnitude z) (cons (angle z))))
+  (define (imag-part z)
+    (* (magnitude z) (sin (angle z))))
+  (define (make-from-real-imag x y)
+    (cons (sqrt (+ (square x) (square y)))
+          (atan y x)))
 
-(define (magnitude-rectangular z)
-  (sqrt (+ (square (real-part-rectangular z))
-           (square (imag-part-rectangular z)))))
+  (define (tag x) (attach-tag 'polar x))
+  (put 'real-part '(polar) real-part)
+  (put 'imag-part '(polar) imag-part)
+  (put 'magnitude '(polar) magnitude)
+  (put 'angle '(polar) angle)
+  (put 'make-from-real-imag 'polar
+       (lambda (x y) (tag (make-from-real-imag x y))))
+  (put 'make-from-mag-ang 'polar
+       (lambda (r a) (tag (make-from-mag-ang r a))))
+  'done)
+  
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (error
+           "No method for these types -- APPLY-GENERIC"
+           (list op type-tags))))))
 
-(define (angle-rectangular z)
-  (atan (imag-part-rectangular z)
-        (real-part-rectangular z)))
-
-(define (make-from-real-imag-rectangular x y)
-  (attach-tag 'rectangular (cons x y)))
-
-(define (make-from-mag-ang-rectangular r a)
-  (attach-tag 'rectangular
-              (cons (* r (cos a)) (* r (sin a)))))
-
-(define (real-part-polar z)
-  (* (magnitude-polar z) (cos (angle-polar z))))
-
-(define (imag-part-polar z)
-  (* (magnitude-polar z) (sin (angle-polar z))))
-
-(define (magnitude-polar z) (car z))
-
-(define (angle-polar z) (cdr z))
-
-(define (make-from-real-imag-polar x y)
-  (attach-tag 'polar
-              (cons (sqrt (+ (square x) (square y)))
-                    (atan y x))))
-
-(define (make-from-mag-ang-polar r a)
-  (attach-tag 'polar (cons r a)))
-
-(define (real-part z)
-  (cond ((rectangular? z)
-         (real-part-rectangular (contents z)))
-        ((polar? z)
-         (real-part-polar (contents z)))
-        (else (error "UNK type -- REAL-PART"))))
-
-(define (imag-part z)
-  (cond ((rectangular? z)
-         (imag-part-rectangular (contents z)))
-        ((polar? z)
-         (imag-part-polar (contents z)))
-        (else (error "UNK type -- IMAG-PART"))))
-
-(define (magnitude z)
-  (cond ((rectangular? z)
-         (magnitude-rectangular (contents z)))
-        ((polar? z)
-         (magnitude-polar (contents z)))
-        (else (error "Unknown type -- MAGNITUDE" z))))
-
-(define (angle z)
-  (cond ((rectangular? z)
-         (angle-rectangular (contents z)))
-        ((polar? z)
-         (angle-polar (contents z)))
-        (else (error "Unknown type -- ANGLE" z))))
+(define (real-part z) (apply-generic 'real-part z))
+(define (imag-aprt z) (apply-generic 'imag-part z))
+(define (magnitude z) (apply-generic 'magnitude z))
+(define (angle z) (apply-generic 'angle z))
 
 (define (make-from-real-imag x y)
-  (make-from-real-imag-rectangular x y))
+  ((get 'make-from-real-image 'rectangular) x y))
 
-(define (make-from-mang-ang r a)
-  (make-from-mag-ang-polar r a))
+(define (make-from-mag-ang r a)
+  ((get 'make-from-mag-ang 'polar) r a))
 
 (define (add-complex z1 z2)
   (make-from-real-imag (+ (real-part z1) (real-part z2))
@@ -107,4 +117,3 @@
 (define (div-complex z1 z2)
   (make-from-mag-ang (/ (magnitude z1) (magnitude z2))
                      (- (angle z1) (angle z2))))
-
