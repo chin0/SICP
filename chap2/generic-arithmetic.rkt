@@ -66,35 +66,50 @@
         ((number? datum) datum)
         (error "Bad tagged datum -- CONTENTS" datum)))
 
+;TODO: 2개 이상의 인자 처리하기. (arg list 받아서 가장 큰 타입 리턴 후 모든 타입이 다 같으면 실패, 아니면 모든 타입을 다 같은 타입으로 raise하기)
 (define (apply-generic op . args)
   ;(display "GENERIC CALL -- ")
   ;(display (list op args))
   ;(newline)
+  (define (higher item1 item2)
+    (define (iter current result)
+      (let ((proc (get 'raise (list (type-tag current)))))
+        (if proc
+            (iter (proc (contents current)) (+ result 1))
+            result)))
+    (let ((h1 (iter item1 0))
+          (h2 (iter item2 0)))
+      (display (list h1 h2))
+      (newline)
+      (cond ((> h1 h2) (type-tag item2))
+            ((= h1 h2) #f) ;same
+            (else (type-tag item1)))))
+  
+  (define (raise-type data target-type)
+    (display data)
+    (newline)
+    (if (eq? (type-tag data) target-type)
+        data
+        (raise-type (raise data) target-type)))
+  
   (let ((type-tags (map type-tag args)))
     (let ((proc (get op type-tags)))
       (if proc
           (apply proc (map contents args))
           (if (= (length args) 2)
-              (let ((type1 (car type-tags))
-                    (type2 (cadr type-tags))
-                    (a1 (car args))
-                    (a2 (cadr args)))
-                (if (eq? type1 type2)
+              (let ((a1 (car args))
+                    (a2 (cadr args))
+                    (target-type (higher (car args) (cadr args))))
+                (if target-type
+                    (apply apply-generic op (map (lambda (x) (raise-type x target-type)) args))
                     (error "No method for these types"
-                                (list op type-tags))
-                (let ((t1->t2 (get-coercion type1 type2))
-                      (t2->t1 (get-coercion type2 type1)))
-                  (cond (t1->t2
-                         (apply-generic op (t1->t2 a1) a2))
-                        (t2->t1
-                         (apply-generic op a1 (t2->t1 a2)))
-                        (else
-                         (error "No method for these types"
-                                (list op type-tags)))))))
+                     (list op type-tags))))
+                
               (error "No method for these types"
                      (list op type-tags)))))))
 
 (define (apply-more-generic op . args)
+  
   (define (coercionable? current types)
     (if (null? types) #t
         (let ((first->current (get-coercion (car types) current)))
@@ -120,7 +135,6 @@
             (iter (cdr tlist) tlist-debug)))))
   
   (let ((type-tags (map type-tag args)))
-    
     (let ((proc (get op type-tags)))
       (if proc
           (apply proc (map contents args))
@@ -129,13 +143,31 @@
                      (list op type-tags))
               (apply apply-more-generic op (iter type-tags type-tags)))))))
         
-(define (add x y) (apply-more-generic 'add x y))
+(define (add x y) (apply-generic 'add x y))
 (define (add-three x y z) (apply-more-generic 'add-three x y z))
 (define (sub x y) (apply-generic 'sub x y))
 (define (mul x y) (apply-generic 'mul x y))
 (define (div x y) (apply-generic 'div x y))
-(define (exp x y) (apply-more-generic 'exp x y))
+(define (exp x y) (apply-generic 'exp x y))
 (define (equ? x y) (apply-generic 'equ? x y))
+(define (=zero? x) (apply-generic '=zero? x))
+(define (project x) (apply-generic 'project x))
+(define (drop x)
+  (let ((dropped (project x)))
+    (if (equ? dropped x)
+        dropped
+        (error "can't drop that type"
+               (type-tag x)))))
+(define (dropable? x)
+  (let ((dropped (project x)))
+    (equ? dropped x)))
+
+
+(define (raise x)
+  (let ((proc (get 'raise (list (type-tag x)))))
+    (if proc
+        (proc (contents x))
+        x)))
 
 (define (install-scheme-number-package)
   (define (tag x)
@@ -154,6 +186,8 @@
        (lambda (x) (tag x)))
   (put 'exp '(scheme-number scheme-number)
        (lambda (x y) (tag (expt x y))))
+  (put 'raise '(scheme-number)
+       (lambda (x) (make-rational x 1)))
   'done)
 
 (define (make-scheme-number n)
@@ -202,6 +236,9 @@
   (put 'make 'rational
        (lambda (n d) (tag (make-rat n d))))
   (put 'equ? '(rational rational) equ-rat?)
+  (put 'raise '(rational)
+       (lambda (x) (make-complex-from-real-imag
+                    (/ (numer x) (denom x)) 0)))
   'done)
 
 (define (make-rational n d)
@@ -331,5 +368,10 @@
 (magnitude z)
 (equ? z w)
 (add z w)
-(add-three 11 11 11) 
+
+
+
+(add 3 z)
+
+
 ;(exp z w)
