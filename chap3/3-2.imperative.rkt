@@ -10,9 +10,33 @@
                  (iter))))
     (iter)))
 
-;TODO: 3.17 implementation
+(define (visited-list)
+  (let ((visited-pairs '()))
+    (define (visit? p)
+      (memq p visited-pairs))
+    (define (add-pairs p)
+      (set! visited-pairs (cons p visited-pairs)))
+    (define (dispatch m)
+      (cond ((eq? m 'add) add-pairs)
+            ((eq? m 'visit?) visit?)
+            (else (error "not valid message"))))
+    dispatch))
 
+;3.17 implementation
 (define (count-pairs x)
-  ;적절한 데이터구조 만들어서 해당 pair가 중복계산인지 아닌지 체크.
-  ;그래프 순회하듯이 하면 될듯. 
-  (let ((visited '()))
+  (let ((v (visited-list)))
+    (define (iter current)
+      (if (or (not (pair? current)) ((v 'visit?) current))
+          0
+          (begin ((v 'add) current)
+                 (+ 1
+                    (iter (car current))
+                    (iter (cdr current))))))
+    (iter x)))
+
+(define p1 (cons 'a '()))
+(define p2 (cons 'b '()))
+(define p3 (cons 'c '()))
+(set-cdr! p2 p3)
+(set-cdr! p1 p2)
+(count-pairs p1)
