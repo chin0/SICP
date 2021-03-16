@@ -8,7 +8,6 @@
              balance)
       "Insufficient funds"))
 
-(withdraw 30)
 
 (define new-withdraw
   (let ((balance 100))
@@ -18,8 +17,6 @@
                  balance)
           "Insufficient funds"))))
 
-(new-withdraw 30)
-(new-withdraw 40)
 
 (define (make-withdraw balance)
   (lambda (amount)
@@ -27,12 +24,6 @@
         (begin (set! balance (- balance amount))
                balance)
         "Insufficient funds")))
-
-(define W1 (make-withdraw 100))
-(define W2 (make-withdraw 200))
-
-(W1 30)
-(W2 100)
 
 (define (make-account balance password)
   (define incorrect-numbers 0)
@@ -65,25 +56,24 @@
             incorrect-message)))
     dispatch)
 
-(define acc (make-account 100 'secret-password))
-((acc 'secret-password 'withdraw) 40)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
-((acc 'some-other-password 'deposit) 50)
+(define (make-joint account original-password password)
+  (define (call-the-cops . args)
+    "call the cops!")
+  (define (dispatch p m)
+    (if (eq? p password)
+        (account original-password m)
+        call-the-cops))
+  dispatch)
 
+(define peter-acc (make-account 100 'open-sesame))
+(define paul-acc (make-joint peter-acc 'open-sesame 'rosebud))
+((paul-acc 'rosebud 'withdraw) 50)
+((peter-acc 'open-sesame 'withdraw) 50)
 (define (make-accumulator initial)
   (lambda (x)
     (begin (set! initial (+ initial x))
            initial)))
 
-(define A (make-accumulator 5))
-(A 10)
-(A 10)
 
 (define (make-monitored f)
   (let ((number-of-called 0))
@@ -93,11 +83,6 @@
         (begin (set! number-of-called (+ 1 number-of-called))
                (f arguments))))
     mf))
-
-(define s (make-monitored sqrt))
-(s 100)
-(s 144)
-(s 'how-many-calls?)
 
 (define random-init 1231231)
 
@@ -142,10 +127,10 @@
   (let ((square-area (* (abs (- x1 x2)) (abs (- y1 y2))))) 
     (* (monte-carlo trials integral-test) square-area)))
 
-(estimate-integral (lambda (x y)
-                     (<= (+ (square x) (square y)) 1)) -100 100 -100 100 1000000)
-
-(define peter-acc (make-account 100 'password))
-(define paul-acc peter-acc)
-((peter-acc 'password 'withdraw) 10)
-((paul-acc 'password 'deposit) 30)
+(define f
+  (let ((state 0))
+    (lambda (x)
+      (define old-state state)
+      (set! state x)
+      old-state)))
+      
